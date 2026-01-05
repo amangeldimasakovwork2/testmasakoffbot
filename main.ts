@@ -117,7 +117,7 @@ const texts: Record<Lang, Record<string, string>> = {
     insufficientStars: "⚠️ Insufficient in-app stars.",
     dailyClaimedXOG: "🎁 Daily bonus claimed! +{amount} XOG",
     dailyNotReady: "⏰ Daily bonus not ready yet. Try again in 24 hours.",
-    profileText: "Your Profile:\n\nRegistration date: {regDate}\nID: {id}\nBalance: {xog} XOG\nIn-app stars: {inAppStars}\nWithdrawal stars: {withdrawalStars}\nReferrals: {referrals}\nEarned from referrals: {earned} XOG\nTrophy: {trophies}\n🎮 Matches Played: {matches}\n🏅 Wins / Losses: {wins}/{losses}",
+    profileText: "👤 Your Profile:\n\n📅 Registration date: <code>{regDate}</code>\n🆔 ID: <code>{id}</code>\n💰 Balance: <code>{xog}</code> XOG\n⭐ In-app stars: <code>{inAppStars}</code>\n💸 Withdrawal stars: <code>{withdrawalStars}</code>\n👥 Referrals: <code>{referrals}</code>\n💵 Earned from referrals: <code>{earned}</code> XOG\n🏆 Trophy: <code>{trophies}</code>\n🎮 Matches Played: <code>{matches}</code>\n🏅 Wins / Losses: <code>{wins}</code>/{losses}",
     leaderboardTrophiesText: "🏅 Top 10 by Trophies:\n",
     leaderboardStarsText: "🌟 Top 10 by Stars:\n",
     accessDenied: "🚫 Access denied.",
@@ -198,7 +198,7 @@ const texts: Record<Lang, Record<string, string>> = {
     insufficientStars: "⚠️ Недостаточно in-app звезд.",
     dailyClaimedXOG: "🎁 Ежедневный бонус получен! +{amount} XOG",
     dailyNotReady: "⏰ Ежедневный бонус еще не готов. Попробуйте через 24 часа.",
-    profileText: "Ваш Профиль:\n\nДата регистрации: {regDate}\nID: {id}\nБаланс: {xog} XOG\nIn-app stars: {inAppStars}\nWithdrawal stars: {withdrawalStars}\nРефералы: {referrals}\nЗаработано от рефералов: {earned} XOG\nТрофеи: {trophies}\n🎮 Матчей сыграно: {matches}\n🏅 Побед / Поражений: {wins}/{losses}",
+    profileText: "👤 Ваш Профиль:\n\n📅 Дата регистрации: <code>{regDate}</code>\n🆔 ID: <code>{id}</code>\n💰 Баланс: <code>{xog}</code> XOG\n⭐ In-app stars: <code>{inAppStars}</code>\n💸 Withdrawal stars: <code>{withdrawalStars}</code>\n👥 Рефералы: <code>{referrals}</code>\n💵 Заработано от рефералов: <code>{earned}</code> XOG\n🏆 Трофеи: <code>{trophies}</code>\n🎮 Матчей сыграно: <code>{matches}</code>\n🏅 Побед / Поражений: <code>{wins}</code>/{losses}",
     leaderboardTrophiesText: "🏅 Топ 10 по трофеям:\n",
     leaderboardStarsText: "🌟 Топ 10 по звездам:\n",
     accessDenied: "🚫 Доступ запрещен.",
@@ -262,22 +262,22 @@ async function sendText(chatId: number, text: string) {
 }
 
 // Function to send a message with inline keyboard and return message ID
-async function sendTextWithKeyboard(chatId: number, text: string, reply_markup: any): Promise<number> {
+async function sendTextWithKeyboard(chatId: number, text: string, reply_markup: any, parse_mode?: string): Promise<number> {
   const res = await fetch(`${API}/sendMessage`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, text, reply_markup }),
+    body: JSON.stringify({ chat_id: chatId, text, reply_markup, parse_mode }),
   });
   const data = await res.json();
   return data.result.message_id;
 }
 
 // Function to edit a message's text and keyboard
-async function editText(chatId: number, msgId: number, text: string, reply_markup?: any) {
+async function editText(chatId: number, msgId: number, text: string, reply_markup?: any, parse_mode?: string) {
   await fetch(`${API}/editMessageText`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ chat_id: chatId, message_id: msgId, text, reply_markup }),
+    body: JSON.stringify({ chat_id: chatId, message_id: msgId, text, reply_markup, parse_mode }),
   });
 }
 
@@ -370,9 +370,9 @@ async function showProfileMenu(chatId: number, msgId: number | null, profile: Us
     kb.push([{ text: getText(lang, "adminPanel"), callback_data: "admin" }]);
   }
   if (msgId) {
-    await editText(chatId, msgId, text, { inline_keyboard: kb });
+    await editText(chatId, msgId, text, { inline_keyboard: kb }, 'HTML');
   } else {
-    await sendTextWithKeyboard(chatId, text, { inline_keyboard: kb });
+    await sendTextWithKeyboard(chatId, text, { inline_keyboard: kb }, 'HTML');
   }
 }
 
@@ -994,6 +994,7 @@ async function handleUpdate(update: any) {
         await setState(user.id, null);
       } else {
         await sendText(chatId, getText(lang, "invalidAmount"));
+        await setState(user.id, null);
       }
       return;
     }
@@ -1019,6 +1020,7 @@ async function handleUpdate(update: any) {
         await setState(user.id, null);
       } else {
         await sendText(chatId, getText(lang, "invalidWithdrawAmount"));
+        await setState(user.id, null);
       }
       return;
     }
@@ -1033,6 +1035,7 @@ async function handleUpdate(update: any) {
         await setState(user.id, null);
       } else {
         await sendText(chatId, getText(lang, "invalidExchange"));
+        await setState(user.id, null);
       }
       return;
     }
@@ -1069,6 +1072,7 @@ async function handleUpdate(update: any) {
       const amount = parseInt(text);
       if (!Number.isInteger(amount) || amount < 0) {
         await sendText(chatId, getText(lang, "invalidAmount"));
+        await setState(user.id, null);
         return;
       }
       const targetProfile = await getUserProfile(targetId);
