@@ -99,15 +99,15 @@ const texts: Record<Lang, Record<string, string>> = {
     exchange: "🔄 Exchange",
     dailyBonus: "🎁 Claim Daily Bonus",
     adminPanel: "🔧 Admin Panel",
-    yourTurn: "🔹 Your turn",
-    opponentTurn: "⏳ Opponent's turn",
+    yourTurn: "🔹 Your turn!",
+    opponentTurn: "⏳ Opponent's turn...",
     youWinRound: "🎉 You won the round!",
     opponentWinRound: "😔 Opponent won the round!",
     tieRound: "🤝 Tie round!",
     youWinMatch: "🏆 You won the match!",
     youLoseMatch: "❌ You lost the match!",
     tieMatch: "🤝 Match tied!",
-    matchStarted: "⚔️ Match started against @",
+    matchStarted: "⚔️ Match started against @{username}! Get ready!",
     invalidAmount: "❌ Invalid amount. Please enter a number ≥ 1",
     enterAmount: "➕ Enter the number of stars you want to top up\n\nMinimum: 1 ⭐",
     paymentSuccess: "✅ Payment successful!\n⭐ ",
@@ -180,15 +180,15 @@ const texts: Record<Lang, Record<string, string>> = {
     exchange: "🔄 Обменять",
     dailyBonus: "🎁 Забрать ежедневный бонус",
     adminPanel: "🔧 Панель админа",
-    yourTurn: "🔹 Ваш ход",
-    opponentTurn: "⏳ Ход оппонента",
+    yourTurn: "🔹 Ваш ход!",
+    opponentTurn: "⏳ Ход оппонента...",
     youWinRound: "🎉 Вы выиграли раунд!",
     opponentWinRound: "😔 Оппонент выиграл раунд!",
     tieRound: "🤝 Ничья в раунде!",
     youWinMatch: "🏆 Вы выиграли матч!",
     youLoseMatch: "❌ Вы проиграли матч!",
     tieMatch: "🤝 Матч ничья!",
-    matchStarted: "⚔️ Матч начался против @",
+    matchStarted: "⚔️ Матч начался против @{username}! Приготовьтесь!",
     invalidAmount: "❌ Неверная сумма. Введите число ≥ 1",
     enterAmount: "➕ Введите количество звезд для пополнения\n\nМинимум: 1 ⭐",
     paymentSuccess: "✅ Оплата успешна!\n⭐ ",
@@ -608,8 +608,8 @@ async function startMatch(p1: number, p2: number, type: "trophy" | "star") {
     await saveUserProfile(p2Profile);
   }
 
-  await sendText(p1, getText(p1Profile.language || "en", "matchStarted") + p2Profile.username);
-  await sendText(p2, getText(p2Profile.language || "en", "matchStarted") + p1Profile.username);
+  await sendText(p1, getText(p1Profile.language || "en", "matchStarted", { username: p2Profile.username }));
+  await sendText(p2, getText(p2Profile.language || "en", "matchStarted", { username: p1Profile.username }));
 
   const boardMsgP1 = await sendTextWithKeyboard(p1, await getBoardText(p1, match), getBoardKeyboard(match));
   const boardMsgP2 = await sendTextWithKeyboard(p2, await getBoardText(p2, match), getBoardKeyboard(match));
@@ -622,10 +622,10 @@ async function startMatch(p1: number, p2: number, type: "trophy" | "star") {
 async function getBoardText(userId: number, match: Match): Promise<string> {
   const profile = await getUserProfile(userId);
   const lang = profile.language || "en";
-  const round = `🔢 Round ${match.rounds}\n`;
+  const round = `🔢 **Round ${match.rounds}**\n`;
   const mark = userId === match.p1 ? "X" : "O";
   const turn = match.turn === userId ? getText(lang, "yourTurn") : getText(lang, "opponentTurn");
-  return round + `🔸 Your mark: ${mark}\n${turn}`;
+  return round + `🔸 **Your mark: ${mark}**\n${turn}`;
 }
 
 // Function to generate inline keyboard for the board
@@ -661,7 +661,7 @@ async function handleMove(cb: any, match: Match) {
     await answerCallback(cb.id, "Not your turn");
     return;
   }
-  if (now - match.lastMoveTime > 300000) { // 5 minutes timeout
+  if (now - match.lastMoveTime > 60000) { // 1 minute timeout
     const opponent = userId === match.p1 ? match.p2 : match.p1;
     await answerCallback(cb.id, "Timeout! You forfeited the match.");
     await endMatch(match, opponent); // Pass winner
@@ -696,7 +696,9 @@ async function handleMove(cb: any, match: Match) {
   await editText(match.p2, match.msgIds[match.p2], await getBoardText(match.p2, match) + (statusKey ? `\n${getText((await getUserProfile(match.p2)).language || "en", statusKey)}` : ""), getBoardKeyboard(match));
 
   if (winnerMark || tie) {
-    if (match.rounds < 3) {
+    if (match.wins[match.p1] >= 2 || match.wins[match.p2] >= 2 || match.rounds === 3) {
+      await endMatch(match);
+    } else {
       match.rounds++;
       match.board = Array(9).fill("");
       match.turn = match.rounds % 2 === 1 ? match.p1 : match.p2; // Alternate starter
@@ -704,8 +706,6 @@ async function handleMove(cb: any, match: Match) {
       await kv.set(["matches", match.id], match);
       await editText(match.p1, match.msgIds[match.p1], await getBoardText(match.p1, match), getBoardKeyboard(match));
       await editText(match.p2, match.msgIds[match.p2], await getBoardText(match.p2, match), getBoardKeyboard(match));
-    } else {
-      await endMatch(match);
     }
   }
 }
@@ -829,7 +829,7 @@ async function createInvoice(chatId: number, userId: number, amount: number) {
       description: `Top up ${amount} stars`,
       payload,
       currency: "XTR",
-      prices: [{ label: "Stars", amount: amount * 1 }], // Assuming XTR units
+      prices: [{ label: "Stars", amount: amount }],
     }),
   });
 }
